@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Partitella CRM — Athlete Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .smooth-scroll { -webkit-overflow-scrolling: touch; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0b0c10; }
+        ::-webkit-scrollbar-thumb { background: #262936; border-radius: 9999px; }
+        ::-webkit-scrollbar-thumb:hover { background: #fd5300; }
+    </style>
+</head>
+<body class="bg-[#0b0c10] text-gray-100 min-h-screen font-sans selection:bg-[#fd5300] selection:text-white flex flex-col">
+
+    <!-- Top Bar Brandizzata con Logo Ufficiale -->
+    <header class="w-full bg-[#121318] border-b border-gray-800/80 sticky top-0 z-30 shadow-lg px-4 py-3">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+            
+            <!-- Logo Grafico + Badge CRM -->
+            <div class="flex items-center gap-3">
+                <img 
+                    src="partitella%20per%20crm.png" 
+                    alt="Partitella" 
+                    class="h-10 sm:h-12 w-auto object-contain drop-shadow"
+                >
+                <div class="flex flex-col">
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md bg-[#fd5300] text-black">
+                            CRM OPS
+                        </span>
+                    </div>
+                    <p class="text-[11px] text-gray-400 mt-0.5">Database Atleti, Storico Iscrizioni e Outreach Diretto</p>
+                </div>
+            </div>
+
+            <!-- Bottoni Azione Superiore -->
+            <div class="flex items-center gap-2 flex-wrap justify-end">
+                <button onclick="openTemplatesModal()" class="bg-[#181a22] hover:bg-[#20232c] text-emerald-400 border border-emerald-500/40 font-bold text-xs px-3 py-2.5 rounded-xl transition flex items-center gap-1.5 active:scale-95 shadow">
+                    💬 Template
+                </button>
+                <button onclick="exportBackup()" class="bg-[#181a22] hover:bg-[#20232c] text-gray-300 font-bold text-xs px-3 py-2.5 rounded-xl border border-gray-700/80 transition flex items-center gap-1.5 active:scale-95 shadow">
+                    💾 Esporta JSON
+                </button>
+                <label class="bg-[#181a22] hover:bg-[#20232c] text-sky-400 font-bold text-xs px-3 py-2.5 rounded-xl border border-sky-500/40 transition flex items-center gap-1.5 active:scale-95 shadow cursor-pointer">
+                    📂 Importa JSON
+                    <input type="file" id="importFileInput" accept=".json" class="hidden" onchange="importBackup(event)">
+                </label>
+                <button onclick="resetToOriginal()" class="bg-[#181a22] hover:bg-[#20232c] text-amber-400 font-bold text-xs px-3 py-2.5 rounded-xl border border-gray-700/80 transition flex items-center gap-1.5 active:scale-95 shadow">
+                    🔄 Reset
+                </button>
+                <button onclick="openModal()" class="bg-[#fd5300] hover:bg-[#e04a00] text-black font-black text-xs px-4 py-2.5 rounded-xl transition flex items-center gap-1.5 shadow-md active:scale-95 uppercase tracking-wider">
+                    + Nuovo
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-6 w-full flex-grow">
+
+        <!-- Barra Filtri & Ricerca -->
+        <div class="bg-[#14161d] border border-emerald-500/25 rounded-2xl p-4 shadow-xl mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+                <div class="md:col-span-6 relative">
+                    <input type="text" id="searchInput" placeholder="🔍 Cerca atleta, squadra, numero, note..." oninput="filterContacts()" 
+                        class="w-full bg-[#181a20] border border-gray-700/80 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-[#fd5300] focus:ring-1 focus:ring-[#fd5300] text-sm">
+                </div>
+
+                <div class="md:col-span-3">
+                    <select id="statusFilter" onchange="filterContacts()" class="w-full bg-[#181a20] border border-gray-700/80 rounded-xl px-3.5 py-3 text-gray-200 focus:outline-none focus:border-[#fd5300] text-sm cursor-pointer">
+                        <option value="">Tutti gli stati</option>
+                        <option value="da_contattare">🟡 Da Contattare</option>
+                        <option value="contattato">🔵 Contattato</option>
+                        <option value="interessato">🟠 Interessato</option>
+                        <option value="iscritto">🟢 Iscritto</option>
+                    </select>
+                </div>
+
+                <div class="md:col-span-3 flex items-center justify-between md:justify-end gap-3 text-xs text-gray-400 px-1">
+                    <span>Atleti trovati:</span>
+                    <span id="totalCount" class="font-black text-lg text-emerald-400 bg-[#121318] px-3 py-1 rounded-lg border border-gray-800 shadow-inner">0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabella Risultati -->
+        <div class="bg-[#14161d] border border-gray-800/90 rounded-2xl overflow-hidden shadow-2xl">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse min-w-[760px]">
+                    <thead>
+                        <tr class="bg-[#121318] text-gray-400 text-[11px] uppercase tracking-wider border-b border-gray-800">
+                            <th class="py-3.5 px-4 font-bold">Atleta</th>
+                            <th class="py-3.5 px-4 font-bold">Contatti Rapidi</th>
+                            <th class="py-3.5 px-4 font-bold">Stato Trattativa</th>
+                            <th class="py-3.5 px-4 font-bold">Ultimo Contatto</th>
+                            <th class="py-3.5 px-4 font-bold">Note & Storico Eventi</th>
+                            <th class="py-3.5 px-4 font-bold text-right">Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody id="contactsTableBody" class="divide-y divide-gray-800/80 text-sm"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modale Scelta Template WhatsApp per Atleta -->
+    <div id="sendWaModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-[#14161d] border border-emerald-500/50 rounded-2xl w-full max-w-lg p-6 shadow-2xl">
+            <div class="flex items-center justify-between pb-3 mb-4 border-b border-gray-800">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl">💬</span>
+                    <div>
+                        <h2 class="text-base font-black text-emerald-400 uppercase tracking-wide">Invia WhatsApp</h2>
+                        <p id="waRecipientLabel" class="text-xs text-gray-400 font-semibold"></p>
+                    </div>
+                </div>
+                <button onclick="closeWaModal()" class="w-8 h-8 rounded-full bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white flex items-center justify-center text-sm">✕</button>
+            </div>
+
+            <div class="space-y-4 text-xs">
+                <div>
+                    <label class="block uppercase font-bold text-gray-400 mb-1.5 tracking-wider">Seleziona Template:</label>
+                    <div class="grid grid-cols-3 gap-2" id="waTemplateButtons">
+                        <button type="button" onclick="selectWaTemplate(0)" id="tplBtn0" class="p-2 rounded-xl border border-gray-700 bg-[#181a20] text-gray-300 font-bold hover:border-[#fd5300] transition text-center"></button>
+                        <button type="button" onclick="selectWaTemplate(1)" id="tplBtn1" class="p-2 rounded-xl border border-gray-700 bg-[#181a20] text-gray-300 font-bold hover:border-[#fd5300] transition text-center"></button>
+                        <button type="button" onclick="selectWaTemplate(2)" id="tplBtn2" class="p-2 rounded-xl border border-gray-700 bg-[#181a20] text-gray-300 font-bold hover:border-[#fd5300] transition text-center"></button>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block uppercase font-bold text-gray-400 mb-1 tracking-wider">Messaggio (Personalizzabile al volo):</label>
+                    <textarea id="waCustomText" rows="5" class="w-full bg-[#181a20] border border-gray-700 rounded-xl p-3 text-white focus:border-emerald-500 focus:outline-none text-xs leading-relaxed resize-none"></textarea>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-3 border-t border-gray-800">
+                    <button type="button" onclick="closeWaModal()" class="bg-[#20232c] hover:bg-gray-700 text-gray-300 font-bold px-4 py-2.5 rounded-xl transition">Annulla</button>
+                    <button type="button" onclick="executeSendWhatsApp()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-6 py-2.5 rounded-xl transition shadow-md uppercase tracking-wider flex items-center gap-1.5">
+                        💬 Apri Chat WhatsApp
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modale Configurazione Gestione Template -->
+    <div id="templatesConfigModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-[#14161d] border border-[#fd5300]/50 rounded-2xl w-full max-w-2xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between pb-3 mb-4 border-b border-gray-800">
+                <h2 class="text-base font-black uppercase tracking-wide text-[#fd5300] flex items-center gap-2">
+                    ⚙️ Configurazione Template WhatsApp
+                </h2>
+                <button onclick="closeTemplatesModal()" class="w-8 h-8 rounded-full bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white flex items-center justify-center text-sm">✕</button>
+            </div>
+            
+            <p class="text-xs text-gray-400 mb-4">
+                Puoi usare i segnaposto automatici: <code class="bg-[#181a20] text-emerald-400 px-1 py-0.5 rounded font-bold">{nome}</code> per il nome dell'atleta e <code class="bg-[#181a20] text-[#fd5300] px-1 py-0.5 rounded font-bold">{squadra}</code> per la squadra.
+            </p>
+
+            <form onsubmit="saveTemplatesConfig(event)" class="space-y-4 text-xs">
+                <div class="bg-[#181a20] p-3 rounded-xl border border-gray-800">
+                    <label class="block uppercase font-bold text-emerald-400 mb-1">Titolo Modello 1</label>
+                    <input type="text" id="cfgTplTitle0" required class="w-full bg-[#121318] border border-gray-700 rounded-lg px-3 py-1.5 text-white text-xs mb-2">
+                    <label class="block uppercase font-bold text-gray-400 mb-1">Testo Messaggio 1</label>
+                    <textarea id="cfgTplText0" rows="3" required class="w-full bg-[#121318] border border-gray-700 rounded-lg p-2.5 text-white text-xs"></textarea>
+                </div>
+
+                <div class="bg-[#181a20] p-3 rounded-xl border border-gray-800">
+                    <label class="block uppercase font-bold text-emerald-400 mb-1">Titolo Modello 2</label>
+                    <input type="text" id="cfgTplTitle1" required class="w-full bg-[#121318] border border-gray-700 rounded-lg px-3 py-1.5 text-white text-xs mb-2">
+                    <label class="block uppercase font-bold text-gray-400 mb-1">Testo Messaggio 2</label>
+                    <textarea id="cfgTplText1" rows="3" required class="w-full bg-[#121318] border border-gray-700 rounded-lg p-2.5 text-white text-xs"></textarea>
+                </div>
+
+                <div class="bg-[#181a20] p-3 rounded-xl border border-gray-800">
+                    <label class="block uppercase font-bold text-emerald-400 mb-1">Titolo Modello 3</label>
+                    <input type="text" id="cfgTplTitle2" required class="w-full bg-[#121318] border border-gray-700 rounded-lg px-3 py-1.5 text-white text-xs mb-2">
+                    <label class="block uppercase font-bold text-gray-400 mb-1">Testo Messaggio 3</label>
+                    <textarea id="cfgTplText2" rows="3" required class="w-full bg-[#121318] border border-gray-700 rounded-lg p-2.5 text-white text-xs"></textarea>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-3 border-t border-gray-800">
+                    <button type="button" onclick="closeTemplatesModal()" class="bg-[#20232c] hover:bg-gray-700 text-gray-300 font-bold px-4 py-2.5 rounded-xl transition">Annulla</button>
+                    <button type="submit" class="bg-[#fd5300] hover:bg-[#e04a00] text-black font-black px-6 py-2.5 rounded-xl transition uppercase tracking-wider">Salva Template</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modale Modifica / Nuovo Atleta -->
+    <div id="contactModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-[#14161d] border border-[#fd5300]/50 rounded-2xl w-full max-w-lg p-6 shadow-2xl">
+            <div class="flex items-center justify-between pb-3 mb-4 border-b border-gray-800">
+                <h2 id="modalTitle" class="text-base font-black uppercase tracking-wide text-[#fd5300] flex items-center gap-2">
+                    ⚡ Scheda Atleta
+                </h2>
+                <button onclick="closeModal()" class="w-8 h-8 rounded-full bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white flex items-center justify-center text-sm">✕</button>
+            </div>
+
+            <form id="contactForm" onsubmit="saveContact(event)" class="space-y-4 text-xs">
+                <input type="hidden" id="modalId">
+                <div>
+                    <label class="block uppercase font-bold text-gray-400 mb-1 tracking-wider">Cognome e Nome</label>
+                    <input type="text" id="modalNome" required class="w-full bg-[#181a20] border border-gray-700 rounded-xl px-3.5 py-2.5 text-white focus:border-[#fd5300] focus:outline-none text-sm font-semibold">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block uppercase font-bold text-gray-400 mb-1 tracking-wider">Telefono (Cellulare)</label>
+                        <input type="text" id="modalTelefono" placeholder="+39 340..." class="w-full bg-[#181a20] border border-gray-700 rounded-xl px-3.5 py-2.5 text-white focus:border-[#fd5300] focus:outline-none text-sm">
+                    </div>
+                    <div>
+                        <label class="block uppercase font-bold text-gray-400 mb-1 tracking-wider">Email</label>
+                        <input type="email" id="modalEmail" placeholder="mario@email.com" class="w-full bg-[#181a20] border border-gray-700 rounded-xl px-3.5 py-2.5 text-white focus:border-[#fd5300] focus:outline-none text-sm">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block uppercase font-bold text-gray-400 mb-1 tracking-wider">Stato</label>
+                        <select id="modalStato" class="w-full bg-[#181a20] border border-gray-700 rounded-xl px-3.5 py-2.5 text-white focus:border-[#fd5300] focus:outline-none text-sm cursor-pointer">
+                            <option value="da_contattare">Da Contattare</option>
+                            <option value="contattato">Contattato</option>
+                            <option value="interessato">Interessato</option>
+                            <option value="iscritto">Iscritto</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block uppercase font-bold text-gray-400 mb-1 tracking-wider">Data Ultimo Contatto</label>
+                        <input type="date" id="modalUltimoContatto" class="w-full bg-[#181a20] border border-gray-700 rounded-xl px-3.5 py-2.5 text-white focus:border-[#fd5300] focus:outline-none text-sm">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block uppercase font-bold text-gray-400 mb-1 tracking-wider">Note, Ruolo & Squadre</label>
+                    <textarea id="modalNote" rows="3" placeholder="Ruolo, squadra di riferimento, note comportamentali..." class="w-full bg-[#181a20] border border-gray-700 rounded-xl p-3 text-white focus:border-[#fd5300] focus:outline-none text-xs leading-relaxed resize-none"></textarea>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-3 border-t border-gray-800">
+                    <button type="button" onclick="closeModal()" class="bg-[#20232c] hover:bg-gray-700 text-gray-300 font-bold px-4 py-2.5 rounded-xl transition">Annulla</button>
+                    <button type="submit" class="bg-[#fd5300] hover:bg-[#e04a00] text-black font-black px-6 py-2.5 rounded-xl transition shadow-md uppercase tracking-wider">Salva Scheda</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <footer class="py-5 text-center text-xs text-gray-500 border-t border-gray-900 bg-[#0d0e12]">
+        Partitella Live Hub — CRM Atleti 2026
+    </footer>
+
+    <script>
+        const INITIAL_TEMPLATES = [
+            {
+                title: "⚽ Invito Torneo",
+                text: "Ciao {nome}! Stiamo scaldando i motori per il prossimo evento di Partitella 3vs3. Pensi di esserci con {squadra}? Fammi sapere che ti blocco il posto!"
+            },
+            {
+                title: "🎬 Figurina & Clip",
+                text: "Ciao {nome}, ti scrivo da Partitella! Sono pronte le figurine e le riprese video del tuo ultimo match. Le trovi aggiornate sul nostro Hub ufficiale!"
+            },
+            {
+                title: "⏰ Reminder Iscrizione",
+                text: "Ciao {nome}, piccolo promemoria da Partitella: stiamo chiudendo le registrazioni per il prossimo torneo. Riuscite a confermare la presenza entro domani?"
+            }
+        ];
+
+        const INITIAL_CONTACTS = [
+            {"id":"p_1","nome":"Angelino Alessio","telefono":"+39 3934829234","email":"","stato":"da_contattare","ultimoContatto":"","note":"[Giocatore] | Squadre: TCS | Tornei: Ottobre 2025"},
+            {"id":"p_2","nome":"Ardia Federico","telefono":"+39 3505317340","email":"federicoardia@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Giocatore] | Squadre: San Luca | Tornei: Arena Maggio 2026 | IG: ardia.federico"},
+            {"id":"p_3","nome":"Ardone Marco","telefono":"+39 3755140671","email":"","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: Riabilita Sabaudia | Tornei: Arena Maggio 2026"},
+            {"id":"p_4","nome":"Baffigi Iacopo","telefono":"+39 3339462520","email":"iacopo.baffigi@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: LOS GUERREROS / BLACK DEVILS | Tornei: Ottobre 2025 / Arena Maggio 2026 | IG: Iacopo.baffigi"},
+            {"id":"p_5","nome":"Bianchi Cristian","telefono":"+39 3468012900","email":"cristianbianchi2003@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: I BARZOTTEROS / Barzotteros 2.0 | Tornei: Ottobre 2025 | IG: Cristian_bianchi10"},
+            {"id":"p_6","nome":"Bornago Alessandro","telefono":"+39 3496279529","email":"","stato":"da_contattare","ultimoContatto":"","note":"[Giocatore] | Squadre: ANGELS OF APRILIA | Tornei: Ottobre 2025"},
+            {"id":"p_7","nome":"Caponi Samuel","telefono":"+39 3421404359","email":"caponisamuel1@gmail. com","stato":"da_contattare","ultimoContatto":"","note":"[Giocatore] | Squadre: San Luca | Tornei: Arena Maggio 2026 | IG: samuel_caponi"},
+            {"id":"p_8","nome":"Cappelletti Davide","telefono":"+39 3462460099","email":"","stato":"da_contattare","ultimoContatto":"","note":"[Giocatore] | Squadre: LOS GUERREROS | Tornei: Ottobre 2025"},
+            {"id":"p_9","nome":"Capuccio Mattia","telefono":"","email":"","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: Scarsenal | Tornei: Arena Maggio 2026"},
+            {"id":"p_10","nome":"Carboni Matteo","telefono":"+39 3893415934","email":"matteo.carboni09@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: Al - Domoro / I Morti di Fiato | Tornei: Ottobre 2025"},
+            {"id":"p_11","nome":"Catalani Emanuele","telefono":"+39 3334915993","email":"","stato":"da_contattare","ultimoContatto":"","note":"[Giocatore] | Tornei: Ottobre 2025"},
+            {"id":"p_12","nome":"Cece Emanuele","telefono":"+39 3349873573","email":"","stato":"da_contattare","ultimoContatto":"","note":"[Giocatore] | Squadre: Scarsenal | Tornei: Arena Maggio 2026"},
+            {"id":"p_13","nome":"Ceracchi Mirko","telefono":"+39 3248983889","email":"","stato":"da_contattare","ultimoContatto":"","note":"[Giocatore] | Tornei: Ottobre 2025"},
+            {"id":"p_14","nome":"Cerqua Mauro","telefono":"","email":"","stato":"da_contattare","ultimoContatto":"","note":"[Giocatore] | Squadre: Riabilita Sabaudia | Tornei: Arena Maggio 2026"},
+            {"id":"p_15","nome":"Civerchia Manuel","telefono":"+39 3922664915","email":"manuelciverchia0@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: Al - Domoro / I Morti di Fiato | Tornei: Ottobre 2025 | IG: no"},
+            {"id":"p_16","nome":"Crescienzo Matteo","telefono":"","email":"","stato":"da_contattare","ultimoContatto":"","note":"[Giocatore] | Squadre: Scarsenal | Tornei: Arena Maggio 2026"},
+            {"id":"p_17","nome":"D'Albenzo Daniele","telefono":"+39 3934540426","email":"dalbenzo.daniele@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: Europippe | Tornei: Ottobre 2025"},
+            {"id":"p_18","nome":"D'Amato Fabio","telefono":"+39 3312244434","email":"fabietto910@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: I CPUS | Tornei: Ottobre 2025 | IG: damatofabio"},
+            {"id":"p_19","nome":"D'Angelo Alessandro","telefono":"+39 3455894177","email":"dangelo.ale@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: MONDOSTICKERS | Tornei: Ottobre 2025"},
+            {"id":"p_20","nome":"Damiani Daniele","telefono":"+39 3925496298","email":"siak84@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: MONDOSTICKERS | Tornei: Ottobre 2025"},
+            {"id":"p_21","nome":"Danieli Davide","telefono":"+39 3278696447","email":"danielidavide142@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: Barzotteros 2.0 / I BARZOTTEROS | Tornei: Ottobre 2025 | IG: H"},
+            {"id":"p_22","nome":"Danieli Riccardo","telefono":"+39 3294273476","email":"","stato":"da_contattare","ultimoContatto":"","note":"[Giocatore] | Squadre: Guardiani Dell’Ovile | Tornei: Ottobre 2025"},
+            {"id":"p_23","nome":"Danieli Roberto","telefono":"+39 3294293580","email":"","stato":"da_contattare","ultimoContatto":"","note":"[Giocatore] | Squadre: Guardiani Dell’Ovile | Tornei: Ottobre 2025"},
+            {"id":"p_24","nome":"De Blasis Mathias","telefono":"","email":"","stato":"da_contattare","ultimoContatto":"","note":"[Giocatore] | Squadre: Riabilita Sabaudia | Tornei: Arena Maggio 2026"},
+            {"id":"p_25","nome":"Di Bernardo Alessandro","telefono":"+39 3392177071","email":"dibernardo011@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: Barzotteros 2.0 / I BARZOTTEROS | Tornei: Ottobre 2025 | IG: Alessandro_dibe11"},
+            {"id":"p_26","nome":"Di Fiore Gionni","telefono":"+39 3403659621","email":"gionniasdroma@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: ANGELS OF APRILIA | Tornei: Ottobre 2025 / Arena Maggio 2026 | IG: di_fIore_g.12"},
+            {"id":"p_27","nome":"Di Mauro Maurizio","telefono":"+39 3397562605","email":"mauro.bamba@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: MONDOSTICKERS | Tornei: Ottobre 2025"},
+            {"id":"p_28","nome":"Di Pastena Michele","telefono":"+39 3408179673","email":"m","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: MONDOSTICKERS | Tornei: Ottobre 2025 | IG: @michelevir3"},
+            {"id":"p_29","nome":"Diaco Davide","telefono":"+39 3275764684","email":"davide.diaco.39@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: Europippe / TCS | Tornei: Ottobre 2025"},
+            {"id":"p_30","nome":"Franchini Cristian","telefono":"+39 3207014994","email":"","stato":"da_contattare","ultimoContatto":"","note":"[Giocatore] | Squadre: I Morti di Fiato | Tornei: Ottobre 2025"},
+            {"id":"p_31","nome":"Gabrielli Simone","telefono":"+39 3917359745","email":"simonmessi07@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Giocatore] | Squadre: 4x4 | Tornei: Arena Maggio 2026"},
+            {"id":"p_32","nome":"Giampaoli Simone","telefono":"+39 3397330689","email":"giampaoli.002@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: A.S. CATARI / PORTO ROTONDAO | Tornei: Ottobre 2025"},
+            {"id":"p_33","nome":"Graziano Francesco","telefono":"+39 3288933034","email":"heatez7@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: EuroPippe / TCS | Tornei: Ottobre 2025"},
+            {"id":"p_34","nome":"Guarda Silvio","telefono":"+39 3465326043","email":"silvio.barone@hotmail.it","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: Tibie alla brace | Tornei: Ottobre 2025 | IG: _silvio87_"},
+            {"id":"p_35","nome":"Iazzetta Roberto","telefono":"","email":"","stato":"da_contattare","ultimoContatto":"","note":"[Giocatore] | Tornei: Ottobre 2025"},
+            {"id":"p_36","nome":"Latorre Giorgio","telefono":"+39 3283449378","email":"giorgio.latorre02@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: I CPUS | Tornei: Ottobre 2025 | IG: @giorgiolatorree"},
+            {"id":"p_37","nome":"Latorre Riccardo","telefono":"+39 3283451589","email":"riccardolatorre6@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: I CPUS | Tornei: Ottobre 2025 | IG: _riccardolatorre"},
+            {"id":"p_38","nome":"Lo Nigro Daniele","telefono":"+39 3298425157","email":"","stato":"da_contattare","ultimoContatto":"","note":"[Giocatore] | Squadre: ANGELS OF APRILIA | Tornei: Ottobre 2025"},
+            {"id":"p_39","nome":"Lorenzetto Andrea","telefono":"+39 3928624866","email":"andrealorenzetto18@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Giocatore] | Squadre: 4x4 | Tornei: Arena Maggio 2026"},
+            {"id":"p_40","nome":"Lucchin Gabriele","telefono":"+39 3664638016","email":"gabrielelucchin16@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: Guardiani Dell’Ovile | Tornei: Ottobre 2025 | IG: gabriele_lucchin"},
+            {"id":"p_41","nome":"Mazzon Matteo","telefono":"+39 3899540797","email":"daminmirko@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: 4x4 | Tornei: Arena Maggio 2026"},
+            {"id":"p_42","nome":"Mazzotta Francesco","telefono":"+39 3274019025","email":"mazzi2092@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: A.S. Catari | Tornei: Ottobre 2025 | IG: ma_che_c_hai"},
+            {"id":"p_43","nome":"Menegatti Alessandro","telefono":"+39 3248682438","email":"social.partitella@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: Prova | Tornei: Ottobre 2025"},
+            {"id":"p_44","nome":"Morbidelli Lorenzo","telefono":"+39 3284366694","email":"lorenzomorbidelli36.lm@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: Barzotteros 2.0 / I BARZOTTEROS | Tornei: Ottobre 2025 | IG: Lorenzo_morbidelli"},
+            {"id":"p_45","nome":"Noce Riccardo","telefono":"+39 3890991361","email":"riccardonoce.26.rn@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: Al - Domoro / I Morti di Fiato | Tornei: Ottobre 2025"},
+            {"id":"p_46","nome":"Palluzzi Davide","telefono":"+39 3289190493","email":"davidepalluzzi046@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Giocatore] | Squadre: BLACK DEVILS | Tornei: Arena Maggio 2026 | IG: SI"},
+            {"id":"p_47","nome":"Palmacci Giordano","telefono":"+39 3884229279","email":"giordanopalmacci34@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Giocatore] | Squadre: 4x4 | Tornei: Arena Maggio 2026"},
+            {"id":"p_48","nome":"Patruno Riccardo","telefono":"+39 3914902810","email":"patrunoriccardo02@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: Tibie alla brace | Tornei: Ottobre 2025"},
+            {"id":"p_49","nome":"Perotti Andrea","telefono":"+39 3917078626","email":"","stato":"da_contattare","ultimoContatto":"","note":"[Giocatore] | Squadre: LOS GUERREROS | Tornei: Ottobre 2025 | IG: _andreaperotti_"},
+            {"id":"p_50","nome":"Petrone Marco","telefono":"+39 3396857726","email":"marcopetrone89@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: MONDOSTICKERS | Tornei: Ottobre 2025"},
+            {"id":"p_51","nome":"Pitu Toader","telefono":"+39 3896630216","email":"","stato":"da_contattare","ultimoContatto":"","note":"[Giocatore] | Squadre: ANGELS OF APRILIA | Tornei: Ottobre 2025"},
+            {"id":"p_52","nome":"Ponsillo Antonio","telefono":"+39 3348579629","email":"antonioponsillo77@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Giocatore] | Squadre: BLACK DEVILS | Tornei: Arena Maggio 2026"},
+            {"id":"p_53","nome":"Ponsillo Domenico","telefono":"+39 3483525338","email":"domenicoponsillo@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Giocatore] | Squadre: BLACK DEVILS | Tornei: Arena Maggio 2026 | IG: ovvio"},
+            {"id":"p_54","nome":"Possamai Samuele","telefono":"+39 3275992028","email":"","stato":"da_contattare","ultimoContatto":"","note":"[Giocatore] | Squadre: Barzotteros 2.0 | Tornei: Ottobre 2025 | IG: Samuelepossamai_"},
+            {"id":"p_55","nome":"Racciatti Pierpaolo Antonio","telefono":"","email":"","stato":"da_contattare","ultimoContatto":"","note":"[Giocatore] | Squadre: Riabilita Sabaudia | Tornei: Arena Maggio 2026"},
+            {"id":"p_56","nome":"Rapaccini Mattia","telefono":"+39 3349813752","email":"mattiarapaccini@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Giocatore] | Squadre: LOS GUERREROS / BLACK DEVILS | Tornei: Ottobre 2025 / Arena Maggio 2026 | IG: Mattiarapaccini"},
+            {"id":"p_57","nome":"Reccanello Alessio","telefono":"+39 3882461422","email":"","stato":"da_contattare","ultimoContatto":"","note":"[Giocatore] | Tornei: Ottobre 2025"},
+            {"id":"p_58","nome":"Richichi Alessio Carmine","telefono":"+39 3890455218","email":"alessiocar54@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: Al - Domoro / I Morti di Fiato | Tornei: Ottobre 2025 | IG: alessiorichichi_"},
+            {"id":"p_59","nome":"Rostirolla Ivan","telefono":"+39 3273486972","email":"ass.disabili.aprilia@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: ANGELS OF APRILIA | Tornei: Ottobre 2025 / Arena Maggio 2026"},
+            {"id":"p_60","nome":"Ruzza Alberto","telefono":"+39 3495583856","email":"albertorim84@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: A.S. CATARI | Tornei: Ottobre 2025"},
+            {"id":"p_61","nome":"Scalisi Antonio","telefono":"+39 3203611106","email":"antonioscalisi9@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: A.S. CATARI | Tornei: Ottobre 2025"},
+            {"id":"p_62","nome":"Scalzo Nicolò","telefono":"+39 3402800329","email":"nicolo.scalzo@outlook.com","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: I CPUS | Tornei: Ottobre 2025 | IG: @nickkscalzo"},
+            {"id":"p_63","nome":"Scognamiglio Luca","telefono":"","email":"","stato":"da_contattare","ultimoContatto":"","note":"[Giocatore] | Squadre: Scarsenal | Tornei: Arena Maggio 2026"},
+            {"id":"p_64","nome":"Secosan Alessio","telefono":"+39 3755549744","email":"alessio.secosan.ads@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Giocatore] | Squadre: San Luca | Tornei: Arena Maggio 2026 | IG: alessiooseco_"},
+            {"id":"p_65","nome":"Terenzi Marco","telefono":"+39 3924318248","email":"mondostickers2018@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: MONDOSTICKERS | Tornei: Ottobre 2025"},
+            {"id":"p_66","nome":"Tollon Mirko","telefono":"+39 3287753663","email":"mirko.tollon@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: ù | Tornei: Ottobre 2025 | IG: Mirkotollon"},
+            {"id":"p_67","nome":"Tomei Samuel","telefono":"+39 331770114","email":"samueltomei2002@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: I CPUS | Tornei: Ottobre 2025 | IG: tomeisamuel"},
+            {"id":"p_68","nome":"Tozzato Claudio","telefono":"+39 3282893096","email":"","stato":"da_contattare","ultimoContatto":"","note":"[Giocatore] | Squadre: Prova | Tornei: Ottobre 2025"},
+            {"id":"p_69","nome":"Tuvene Catalin","telefono":"+39 3248923278","email":"","stato":"da_contattare","ultimoContatto":"","note":"[Giocatore] | Squadre: ANGELS OF APRILIA | Tornei: Arena Maggio 2026"},
+            {"id":"p_70","nome":"Ventresco Davide","telefono":"+39 3289518311","email":"ventrescodavide@hotmail.it","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: Tibie alla brace | Tornei: Ottobre 2025 | IG: Non ce l'ho"},
+            {"id":"p_71","nome":"Ventresco Enrico","telefono":"+39 3293218903","email":"enricoventresco1@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: Tibie alla brace | Tornei: Ottobre 2025"},
+            {"id":"p_72","nome":"Visari Manuel","telefono":"+39 3297993369","email":"manuel.visari@gmail.com","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: I CPUS | Tornei: Ottobre 2025 | IG: Manuel_visio_visari"},
+            {"id":"p_73","nome":"Zerella Alessio","telefono":"+39 3248396461","email":"zerella5@icloud.com","stato":"da_contattare","ultimoContatto":"","note":"[Capitano] | Squadre: San Luca | Tornei: Arena Maggio 2026 | IG: Im_zerella"}
+        ];
+
+        let contacts = [];
+        let templates = [];
+        let currentTargetContact = null;
+        let selectedTemplateIndex = 0;
+
+        function loadData() {
+            const savedC = localStorage.getItem('partitella_crm_data_v3');
+            if (savedC) {
+                try { contacts = JSON.parse(savedC); } catch(e) { contacts = [...INITIAL_CONTACTS]; }
+            } else {
+                contacts = [...INITIAL_CONTACTS];
+                saveContactsStorage();
+            }
+
+            const savedT = localStorage.getItem('partitella_crm_templates');
+            if (savedT) {
+                try { templates = JSON.parse(savedT); } catch(e) { templates = [...INITIAL_TEMPLATES]; }
+            } else {
+                templates = [...INITIAL_TEMPLATES];
+                saveTemplatesStorage();
+            }
+
+            renderContacts(contacts);
+        }
+
+        function saveContactsStorage() {
+            localStorage.setItem('partitella_crm_data_v3', JSON.stringify(contacts));
+        }
+
+        function saveTemplatesStorage() {
+            localStorage.setItem('partitella_crm_templates', JSON.stringify(templates));
+        }
+
+        function renderContacts(data) {
+            const tbody = document.getElementById('contactsTableBody');
+            document.getElementById('totalCount').innerText = data.length;
+            tbody.innerHTML = '';
+
+            data.forEach(c => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-[#181a24] transition border-b border-gray-800/60';
+                
+                let badgeColor = 'bg-[#181a20] text-gray-400 border border-gray-700';
+                if(c.stato === 'contattato') badgeColor = 'bg-blue-950/40 text-blue-400 border border-blue-800/60';
+                if(c.stato === 'interessato') badgeColor = 'bg-amber-950/40 text-[#fd5300] border border-[#fd5300]/50';
+                if(c.stato === 'iscritto') badgeColor = 'bg-emerald-950/40 text-emerald-400 border border-emerald-600/50';
+
+                tr.innerHTML = `
+                    <td class="p-4 font-black text-white whitespace-nowrap">
+                        <div class="flex items-center gap-2">
+                            <span>${c.nome}</span>
+                            ${c.note && c.note.includes('[Capitano]') ? `<span class="text-[9px] bg-[#fd5300]/20 text-[#fd5300] border border-[#fd5300]/40 px-1.5 py-0.5 rounded font-bold uppercase">Cap</span>` : ''}
+                        </div>
+                    </td>
+                    <td class="p-4 text-xs">
+                        ${c.telefono ? `
+                            <button onclick="openWaModal('${c.id}')" title="Apri opzioni messaggio WhatsApp" 
+                                class="bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-black border border-emerald-500/40 font-bold px-2.5 py-1.5 rounded-lg transition flex items-center gap-1.5 active:scale-95 shadow">
+                                💬 <span>${c.telefono}</span>
+                            </button>
+                        ` : '<span class="text-gray-600 italic">No recapito</span>'}
+                        ${c.email ? `<div class="mt-1 text-[11px] text-gray-500 truncate max-w-[180px]"><a href="mailto:${c.email}" class="hover:text-gray-300">✉️ ${c.email}</a></div>` : ''}
+                    </td>
+                    <td class="p-4">
+                        <select onchange="updateStatus('${c.id}', this.value)" class="text-xs px-3 py-1.5 rounded-xl font-bold ${badgeColor} focus:outline-none cursor-pointer transition">
+                            <option value="da_contattare" ${c.stato==='da_contattare'?'selected':''}>🟡 Da Contattare</option>
+                            <option value="contattato" ${c.stato==='contattato'?'selected':''}>🔵 Contattato</option>
+                            <option value="interessato" ${c.stato==='interessato'?'selected':''}>🟠 Interessato</option>
+                            <option value="iscritto" ${c.stato==='iscritto'?'selected':''}>🟢 Iscritto</option>
+                        </select>
+                    </td>
+                    <td class="p-4 text-xs text-gray-400 whitespace-nowrap">
+                        <input type="date" value="${c.ultimoContatto || ''}" onchange="updateDate('${c.id}', this.value)" class="bg-[#181a20] border border-gray-700/80 rounded-lg px-2.5 py-1 text-gray-200 text-xs focus:border-[#fd5300] focus:outline-none">
+                    </td>
+                    <td class="p-4 text-xs text-gray-300 max-w-sm">
+                        <textarea onblur="updateNote('${c.id}', this.value)" rows="1" class="w-full bg-[#181a20]/70 hover:bg-[#181a20] focus:bg-[#181a20] border border-gray-800 focus:border-[#fd5300] rounded-lg p-2 text-gray-300 text-xs transition resize-y leading-tight font-sans">${c.note || ''}</textarea>
+                    </td>
+                    <td class="p-4 text-right space-x-1 whitespace-nowrap">
+                        <button onclick="editContactModal('${c.id}')" title="Modifica Scheda Atleta" class="text-gray-400 hover:text-white p-2 rounded-lg hover:bg-gray-800 transition active:scale-95">✏️</button>
+                        <button onclick="deleteContact('${c.id}')" title="Elimina Atleta" class="text-red-400 hover:text-red-300 p-2 rounded-lg hover:bg-red-500/10 transition active:scale-95">🗑️</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        /* --- LOGICA WHATSAPP --- */
+        function openWaModal(id) {
+            const c = contacts.find(x => x.id === id);
+            if (!c || !c.telefono) return;
+            currentTargetContact = c;
+
+            document.getElementById('waRecipientLabel').innerText = `${c.nome} • ${c.telefono}`;
+
+            for (let i = 0; i < 3; i++) {
+                const btn = document.getElementById(`tplBtn${i}`);
+                if (templates[i]) {
+                    btn.innerText = templates[i].title;
+                    btn.classList.remove('hidden');
+                } else {
+                    btn.classList.add('hidden');
+                }
+            }
+
+            selectWaTemplate(0);
+            document.getElementById('sendWaModal').classList.remove('hidden');
+            document.getElementById('sendWaModal').classList.add('flex');
+        }
+
+        function closeWaModal() {
+            document.getElementById('sendWaModal').classList.add('hidden');
+            document.getElementById('sendWaModal').classList.remove('flex');
+            currentTargetContact = null;
+        }
+
+        function selectWaTemplate(idx) {
+            selectedTemplateIndex = idx;
+            if (!templates[idx] || !currentTargetContact) return;
+
+            for (let i = 0; i < 3; i++) {
+                const btn = document.getElementById(`tplBtn${i}`);
+                if (i === idx) {
+                    btn.className = "p-2 rounded-xl border border-emerald-500 bg-emerald-950/40 text-emerald-300 font-bold transition text-center shadow";
+                } else {
+                    btn.className = "p-2 rounded-xl border border-gray-700 bg-[#181a20] text-gray-400 font-bold hover:border-gray-500 transition text-center";
+                }
+            }
+
+            const parts = currentTargetContact.nome.trim().split(' ');
+            const firstName = parts.length > 1 ? parts.slice(1).join(' ') : parts[0];
+
+            let teamName = "la tua squadra";
+            if (currentTargetContact.note && currentTargetContact.note.includes('Squadre:')) {
+                const match = currentTargetContact.note.match(/Squadre:\s*([^|]+)/);
+                if (match && match[1]) {
+                    teamName = match[1].trim();
+                }
+            }
+
+            let msg = templates[idx].text;
+            msg = msg.replace(/{nome}/gi, firstName);
+            msg = msg.replace(/{squadra}/gi, teamName);
+
+            document.getElementById('waCustomText').value = msg;
+        }
+
+        function executeSendWhatsApp() {
+            if (!currentTargetContact || !currentTargetContact.telefono) return;
+            const text = document.getElementById('waCustomText').value;
+            const cleanPhone = currentTargetContact.telefono.replace(/[^0-9]/g, '');
+            const finalPhone = cleanPhone.startsWith('39') ? cleanPhone : '39' + cleanPhone;
+
+            const waLink = `https://wa.me/${finalPhone}?text=${encodeURIComponent(text)}`;
+            
+            if (currentTargetContact.stato === 'da_contattare') {
+                currentTargetContact.stato = 'contattato';
+            }
+            currentTargetContact.ultimoContatto = new Date().toISOString().split('T')[0];
+            saveContactsStorage();
+            filterContacts();
+
+            window.open(waLink, '_blank');
+            closeWaModal();
+        }
+
+        /* --- CONFIGURAZIONE TEMPLATE --- */
+        function openTemplatesModal() {
+            for (let i = 0; i < 3; i++) {
+                document.getElementById(`cfgTplTitle${i}`).value = templates[i]?.title || `Template ${i+1}`;
+                document.getElementById(`cfgTplText${i}`).value = templates[i]?.text || '';
+            }
+            document.getElementById('templatesConfigModal').classList.remove('hidden');
+            document.getElementById('templatesConfigModal').classList.add('flex');
+        }
+
+        function closeTemplatesModal() {
+            document.getElementById('templatesConfigModal').classList.add('hidden');
+            document.getElementById('templatesConfigModal').classList.remove('flex');
+        }
+
+        function saveTemplatesConfig(e) {
+            e.preventDefault();
+            templates = [
+                {
+                    title: document.getElementById('cfgTplTitle0').value,
+                    text: document.getElementById('cfgTplText0').value
+                },
+                {
+                    title: document.getElementById('cfgTplTitle1').value,
+                    text: document.getElementById('cfgTplText1').value
+                },
+                {
+                    title: document.getElementById('cfgTplTitle2').value,
+                    text: document.getElementById('cfgTplText2').value
+                }
+            ];
+            saveTemplatesStorage();
+            closeTemplatesModal();
+            alert('Template salvati con successo!');
+        }
+
+        /* --- FILTRI, MODIFICA E OPERAZIONI --- */
+        function filterContacts() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const status = document.getElementById('statusFilter').value;
+
+            const filtered = contacts.filter(c => {
+                const matchQuery = c.nome.toLowerCase().includes(query) || 
+                                   (c.telefono && c.telefono.toLowerCase().includes(query)) || 
+                                   (c.email && c.email.toLowerCase().includes(query)) ||
+                                   (c.note && c.note.toLowerCase().includes(query));
+                const matchStatus = status === '' || c.stato === status;
+                return matchQuery && matchStatus;
+            });
+            renderContacts(filtered);
+        }
+
+        function updateStatus(id, newStatus) {
+            const c = contacts.find(x => x.id === id);
+            if(c) {
+                c.stato = newStatus;
+                if(!c.ultimoContatto && newStatus !== 'da_contattare') {
+                    c.ultimoContatto = new Date().toISOString().split('T')[0];
+                }
+                saveContactsStorage();
+                filterContacts();
+            }
+        }
+
+        function updateDate(id, newDate) {
+            const c = contacts.find(x => x.id === id);
+            if(c) {
+                c.ultimoContatto = newDate;
+                saveContactsStorage();
+            }
+        }
+
+        function updateNote(id, newNote) {
+            const c = contacts.find(x => x.id === id);
+            if(c && c.note !== newNote) {
+                c.note = newNote;
+                saveContactsStorage();
+            }
+        }
+
+        function deleteContact(id) {
+            if(confirm('Vuoi rimuovere questo atleta dal CRM?')) {
+                contacts = contacts.filter(x => x.id !== id);
+                saveContactsStorage();
+                filterContacts();
+            }
+        }
+
+        function openModal() {
+            document.getElementById('modalTitle').innerText = "⚡ Aggiungi Nuovo Atleta";
+            document.getElementById('modalId').value = "";
+            document.getElementById('contactForm').reset();
+            document.getElementById('modalUltimoContatto').value = new Date().toISOString().split('T')[0];
+            document.getElementById('contactModal').classList.remove('hidden');
+            document.getElementById('contactModal').classList.add('flex');
+        }
+
+        function editContactModal(id) {
+            const c = contacts.find(x => x.id === id);
+            if (!c) return;
+            document.getElementById('modalTitle').innerText = "⚡ Modifica Scheda Atleta";
+            document.getElementById('modalId').value = c.id;
+            document.getElementById('modalNome').value = c.nome;
+            document.getElementById('modalTelefono').value = c.telefono;
+            document.getElementById('modalEmail').value = c.email;
+            document.getElementById('modalStato').value = c.stato;
+            document.getElementById('modalUltimoContatto').value = c.ultimoContatto || '';
+            document.getElementById('modalNote').value = c.note || '';
+
+            document.getElementById('contactModal').classList.remove('hidden');
+            document.getElementById('contactModal').classList.add('flex');
+        }
+
+        function closeModal() {
+            document.getElementById('contactModal').classList.add('hidden');
+            document.getElementById('contactModal').classList.remove('flex');
+            document.getElementById('contactForm').reset();
+        }
+
+        function saveContact(e) {
+            e.preventDefault();
+            const editId = document.getElementById('modalId').value;
+            const nome = document.getElementById('modalNome').value;
+            const telefono = document.getElementById('modalTelefono').value || '';
+            const email = document.getElementById('modalEmail').value || '';
+            const stato = document.getElementById('modalStato').value;
+            const ultimoContatto = document.getElementById('modalUltimoContatto').value;
+            const note = document.getElementById('modalNote').value;
+
+            if (editId) {
+                const c = contacts.find(x => x.id === editId);
+                if (c) {
+                    c.nome = nome;
+                    c.telefono = telefono;
+                    c.email = email;
+                    c.stato = stato;
+                    c.ultimoContatto = ultimoContatto;
+                    c.note = note;
+                }
+            } else {
+                contacts.unshift({
+                    id: 'p_' + Date.now(),
+                    nome, telefono, email, stato, ultimoContatto, note
+                });
+            }
+
+            saveContactsStorage();
+            filterContacts();
+            closeModal();
+        }
+
+        /* --- IMPORT & EXPORT BACKUP --- */
+        function exportBackup() {
+            const backupPayload = { contacts, templates, exportedAt: new Date().toISOString() };
+            const now = new Date();
+            const dateStr = now.toISOString().slice(0, 10);
+            const timeStr = `${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
+            const fileName = `partitella_crm_${dateStr}_${timeStr}.json`;
+
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupPayload, null, 2));
+            const dl = document.createElement('a');
+            dl.setAttribute("href", dataStr);
+            dl.setAttribute("download", fileName);
+            dl.click();
+        }
+
+        function importBackup(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (!parsed.contacts || !Array.isArray(parsed.contacts)) {
+                        alert("File non valido: non contiene la lista contatti di Partitella.");
+                        return;
+                    }
+
+                    if (confirm(`Trovati ${parsed.contacts.length} contatti nel backup. Vuoi sostituire i dati attuali con questo file?`)) {
+                        contacts = parsed.contacts;
+                        if (parsed.templates && Array.isArray(parsed.templates)) {
+                            templates = parsed.templates;
+                            saveTemplatesStorage();
+                        }
+                        saveContactsStorage();
+                        filterContacts();
+                        alert("Dati importati con successo!");
+                    }
+                } catch(err) {
+                    alert("Errore nella lettura del file JSON: " + err.message);
+                } finally {
+                    event.target.value = "";
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function resetToOriginal() {
+            if (confirm("Vuoi resettare i dati cancellando le modifiche e ricaricando i 73 atleti e i template iniziali?")) {
+                contacts = [...INITIAL_CONTACTS];
+                templates = [...INITIAL_TEMPLATES];
+                saveContactsStorage();
+                saveTemplatesStorage();
+                renderContacts(contacts);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadData);
+    </script>
+</body>
+</html>
